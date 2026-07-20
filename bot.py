@@ -22,7 +22,7 @@ def get_vk_post():
 
     print(data)
 
-    return data["response"]["items"][0]
+    return data["response"]["items"][1]
 
 
 def send_to_telegram(text):
