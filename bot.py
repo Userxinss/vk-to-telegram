@@ -42,6 +42,16 @@ def send_to_telegram(text, photo=None):
         })
 
 
+def get_photo(post):
+    if "attachments" in post:
+        for item in post["attachments"]:
+            if item["type"] == "photo":
+                sizes = item["photo"]["sizes"]
+                return sizes[-1]["url"]
+
+    return None
+
+
 def get_last_post_id():
     try:
         with open("last_post.txt", "r") as f:
@@ -63,22 +73,15 @@ last_id = get_last_post_id()
 
 
 if post_id != last_id:
+
     text = post.get("text", "")
+    
+    photo = get_photo(post)
 
-photo = None
-
-if "attachments" in post:
-    for item in post["attachments"]:
-        if item["type"] == "photo":
-            sizes = item["photo"]["sizes"]
-            photo = sizes[-1]["url"]
-            break
-
-
-send_to_telegram(
-    "🏀 Новый пост из VK:\n\n" + text,
-    photo
-)
+    send_to_telegram(
+        "🏀 Новый пост из VK:\n\n" + text,
+        photo
+    )
 
     save_last_post_id(post_id)
 
