@@ -23,13 +23,23 @@ def get_vk_post():
     return data["response"]["items"][1]
 
 
-def send_to_telegram(text):
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+def send_to_telegram(text, photo=None):
+    if photo:
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto"
 
-    requests.post(url, json={
-        "chat_id": TG_CHANNEL,
-        "text": text
-    })
+        requests.post(url, json={
+            "chat_id": TG_CHANNEL,
+            "photo": photo,
+            "caption": text
+        })
+
+    else:
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+
+        requests.post(url, json={
+            "chat_id": TG_CHANNEL,
+            "text": text
+        })
 
 
 def get_last_post_id():
@@ -55,9 +65,20 @@ last_id = get_last_post_id()
 if post_id != last_id:
     text = post.get("text", "")
 
-    send_to_telegram(
-        "🏀 Новый пост из VK:\n\n" + text
-    )
+photo = None
+
+if "attachments" in post:
+    for item in post["attachments"]:
+        if item["type"] == "photo":
+            sizes = item["photo"]["sizes"]
+            photo = sizes[-1]["url"]
+            break
+
+
+send_to_telegram(
+    "🏀 Новый пост из VK:\n\n" + text,
+    photo
+)
 
     save_last_post_id(post_id)
 
