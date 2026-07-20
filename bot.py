@@ -14,7 +14,7 @@ def get_vk_post():
 
     params = {
         "owner_id": f"-{GROUP_ID}",
-        "count": 2,
+        "count": 1,
         "access_token": VK_TOKEN,
         "v": "5.199"
     }
@@ -26,7 +26,7 @@ def get_vk_post():
         raise Exception("Ошибка VK API")
 
     # [0] закрепленный, [1] последний обычный
-    return data["response"]["items"][1]
+    return data["response"]["items"][0]
 
 
 def get_photos(post):
