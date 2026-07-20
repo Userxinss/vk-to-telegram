@@ -12,7 +12,7 @@ def get_vk_post():
 
     params = {
         "owner_id": f"-{GROUP_ID}",
-        "count": 1,
+        "count": 2,
         "access_token": VK_TOKEN,
         "v": "5.199"
     }
