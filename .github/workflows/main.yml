@@ -12,6 +12,12 @@ jobs:
     steps:
       - name: Получаем код
         uses: actions/checkout@v4
+        
+      - name: Загружаем память
+        uses: actions/cache@v4
+        with:
+          path: last_post.txt
+          key: vk-last-post
 
       - name: Запускаем Python
         uses: actions/setup-python@v5
@@ -27,3 +33,9 @@ jobs:
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
         run: python bot.py
+        
+      - name: Сохраняем память
+        uses: actions/cache/save@v4
+        with:
+          path: last_post.txt
+          key: vk-last-post
