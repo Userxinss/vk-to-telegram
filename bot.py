@@ -15,7 +15,7 @@ def get_vk_post():
 
     params = {
         "owner_id": f"-{GROUP_ID}",
-        "count": 1,
+        "count": 2,
         "access_token": VK_TOKEN,
         "v": "5.199"
     }
@@ -26,7 +26,9 @@ def get_vk_post():
         print(data)
         raise Exception("Ошибка VK API")
 
-    return data["response"]["items"][0]
+    # [0] закрепленный пост
+    # [1] последний обычный пост
+    return data["response"]["items"][1]
 
 
 
@@ -95,7 +97,10 @@ def get_video(post):
 
             except Exception as e:
 
-                print(e)
+                print(
+                    "Ошибка получения видео:",
+                    e
+                )
 
 
     return None
@@ -109,7 +114,7 @@ def send_media_group(text, photos, video_url):
     files = {}
 
 
-    # фотографии
+    # Фото
 
     for index, photo in enumerate(photos):
 
@@ -127,11 +132,12 @@ def send_media_group(text, photos, video_url):
 
 
 
-    # видео
+    # Видео
 
     if video_url:
 
-        print("Скачиваю видео")
+        print("Скачиваю видео...")
+
 
         video = requests.get(
             video_url
@@ -145,11 +151,19 @@ def send_media_group(text, photos, video_url):
         )
 
 
+        video_item = {
+            "type": "video",
+            "media": "attach://video.mp4"
+        }
+
+
+        # если нет фото — текст крепим к видео
+        if not photos:
+            video_item["caption"] = text
+
+
         media.append(
-            {
-                "type": "video",
-                "media": "attach://video.mp4"
-            }
+            video_item
         )
 
 
@@ -205,6 +219,7 @@ def get_last_post_id():
 
             return f.read().strip()
 
+
     except:
 
         return ""
@@ -254,7 +269,7 @@ if post_id != last_id:
 
 
     caption = (
-        ""
+        "🏀 AP Basketball\n\n"
         + text
     )
 
