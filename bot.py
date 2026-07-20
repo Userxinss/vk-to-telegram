@@ -254,7 +254,8 @@ if post_id != last_id:
 
 
     caption = (
-        text
+        ""
+        + text
     )
 
 
