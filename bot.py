@@ -44,17 +44,12 @@ def get_photos(post):
 def get_video(post):
     if "attachments" in post:
         for item in post["attachments"]:
+            print("ATTACHMENT:")
+            print(item)
+
             if item["type"] == "video":
-
-                video = item["video"]
-
-                files = video.get("files", {})
-
-                if "mp4_720" in files:
-                    return files["mp4_720"]
-
-                if "mp4_480" in files:
-                    return files["mp4_480"]
+                print("НАШЕЛ ВИДЕО")
+                return "VIDEO_FOUND"
 
     return None
 
