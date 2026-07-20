@@ -20,6 +20,8 @@ def get_vk_post():
     response = requests.get(url, params=params)
     data = response.json()
 
+    print(data)
+
     return data["response"]["items"][0]
 
 
