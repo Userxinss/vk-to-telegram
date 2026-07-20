@@ -236,7 +236,7 @@ if post_id != last_id:
 
 
     caption = (
-        "🏀 AP Basketball\n\n"
+        ""
         + text
     )
 
