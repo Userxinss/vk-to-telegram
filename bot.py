@@ -1,4 +1,5 @@
 import os
+import json
 import requests
 
 
@@ -28,91 +29,89 @@ def get_vk_post():
     return data["response"]["items"][1]
 
 
+
 def get_photos(post):
     photos = []
 
-    if "attachments" in post:
-        for item in post["attachments"]:
+    for item in post.get("attachments", []):
 
-            if item["type"] == "photo":
+        if item["type"] == "photo":
 
-                sizes = item["photo"]["sizes"]
+            sizes = item["photo"]["sizes"]
 
-                photos.append(
-                    sizes[-1]["url"]
-                )
+            photos.append(
+                sizes[-1]["url"]
+            )
 
     return photos
 
 
+
 def get_video(post):
 
-    if "attachments" in post:
+    for item in post.get("attachments", []):
 
-        for item in post["attachments"]:
+        if item["type"] == "video":
 
-            if item["type"] == "video":
+            video = item["video"]
 
-                video = item["video"]
-
-                owner_id = video["owner_id"]
-                video_id = video["id"]
-
-                url = "https://api.vk.com/method/video.get"
-
-                params = {
-                    "owner_id": owner_id,
-                    "videos": f"{owner_id}_{video_id}",
-                    "access_token": VK_TOKEN,
-                    "v": "5.199"
-                }
-
-                response = requests.get(
-                    url,
-                    params=params
-                ).json()
-
-                print("VIDEO RESPONSE:")
-                print(response)
+            owner_id = video["owner_id"]
+            video_id = video["id"]
 
 
-                try:
-
-                    files = response["response"]["items"][0]["files"]
+            url = "https://api.vk.com/method/video.get"
 
 
-                    if "mp4_720" in files:
-                        return files["mp4_720"]
+            params = {
+                "owner_id": owner_id,
+                "videos": f"{owner_id}_{video_id}",
+                "access_token": VK_TOKEN,
+                "v": "5.199"
+            }
 
 
-                    if "mp4_480" in files:
-                        return files["mp4_480"]
+            response = requests.get(
+                url,
+                params=params
+            ).json()
 
 
-                except Exception as e:
+            print("VIDEO RESPONSE")
+            print(response)
 
-                    print(
-                        "Ошибка получения видео:",
-                        e
-                    )
+
+            try:
+
+                files = response["response"]["items"][0]["files"]
+
+
+                if "mp4_720" in files:
+                    return files["mp4_720"]
+
+
+                if "mp4_480" in files:
+                    return files["mp4_480"]
+
+
+            except Exception as e:
+
+                print(e)
 
 
     return None
 
 
 
-def send_photos_to_telegram(text, photos):
 
-    url = (
-        f"https://api.telegram.org/"
-        f"bot{TG_TOKEN}/sendMediaGroup"
-    )
-
+def send_media_group(text, photos, video_url):
 
     media = []
+    files = {}
 
 
-    for i, photo in enumerate(photos):
+    # фотографии
+
+    for index, photo in enumerate(photos):
 
         item = {
             "type": "photo",
@@ -120,8 +119,7 @@ def send_photos_to_telegram(text, photos):
         }
 
 
-        if i == 0:
-
+        if index == 0:
             item["caption"] = text
 
 
@@ -129,59 +127,46 @@ def send_photos_to_telegram(text, photos):
 
 
 
-    requests.post(
-        url,
-        json={
-            "chat_id": TG_CHANNEL,
-            "media": media
-        }
-    )
+    # видео
+
+    if video_url:
+
+        print("Скачиваю видео")
+
+        video = requests.get(
+            video_url
+        ).content
 
 
-
-def send_video_to_telegram(text, video_url):
-
-    print("Скачиваю видео...")
-
-
-    video_file = requests.get(
-        video_url
-    ).content
+        files["video.mp4"] = (
+            "video.mp4",
+            video,
+            "video/mp4"
+        )
 
 
-    print("Отправляю видео...")
+        media.append(
+            {
+                "type": "video",
+                "media": "attach://video.mp4"
+            }
+        )
+
 
 
     url = (
         f"https://api.telegram.org/"
-        f"bot{TG_TOKEN}/sendVideo"
+        f"bot{TG_TOKEN}/sendMediaGroup"
     )
-
-
-    files = {
-
-        "video": (
-            "video.mp4",
-            video_file,
-            "video/mp4"
-        )
-
-    }
-
-
-    data = {
-
-        "chat_id": TG_CHANNEL,
-
-        "caption": text
-
-    }
 
 
     response = requests.post(
         url,
-        files=files,
-        data=data
+        data={
+            "chat_id": TG_CHANNEL,
+            "media": json.dumps(media)
+        },
+        files=files
     )
 
 
@@ -189,7 +174,8 @@ def send_video_to_telegram(text, video_url):
 
 
 
-def send_text_to_telegram(text):
+
+def send_text(text):
 
     url = (
         f"https://api.telegram.org/"
@@ -207,6 +193,7 @@ def send_text_to_telegram(text):
 
 
 
+
 def get_last_post_id():
 
     try:
@@ -218,10 +205,10 @@ def get_last_post_id():
 
             return f.read().strip()
 
-
     except:
 
         return ""
+
 
 
 
@@ -235,6 +222,8 @@ def save_last_post_id(post_id):
         f.write(
             str(post_id)
         )
+
+
 
 
 
@@ -272,38 +261,21 @@ if post_id != last_id:
 
     photos = get_photos(post)
 
-
     video = get_video(post)
 
 
 
-    # фото отправляем отдельно
+    if photos or video:
 
-    if photos:
-
-        send_photos_to_telegram(
+        send_media_group(
             caption,
-            photos
-        )
-
-
-
-    # видео отправляем отдельно
-
-    if video:
-
-        send_video_to_telegram(
-            caption,
+            photos,
             video
         )
 
+    else:
 
-
-    # если ничего нет
-
-    if not photos and not video:
-
-        send_text_to_telegram(
+        send_text(
             caption
         )
 
