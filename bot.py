@@ -25,7 +25,6 @@ def get_vk_post():
         print(data)
         raise Exception("Ошибка VK API")
 
-    # первый пост закрепленный, второй обычный
     return data["response"]["items"][1]
 
 
@@ -34,10 +33,14 @@ def get_photos(post):
 
     if "attachments" in post:
         for item in post["attachments"]:
+
             if item["type"] == "photo":
 
                 sizes = item["photo"]["sizes"]
-                photos.append(sizes[-1]["url"])
+
+                photos.append(
+                    sizes[-1]["url"]
+                )
 
     return photos
 
@@ -74,6 +77,7 @@ def get_video(post):
 
 
                 try:
+
                     files = response["response"]["items"][0]["files"]
 
 
@@ -86,56 +90,23 @@ def get_video(post):
 
 
                 except Exception as e:
-                    print("Ошибка получения видео:")
-                    print(e)
+
+                    print(
+                        "Ошибка получения видео:",
+                        e
+                    )
 
 
     return None
 
 
 
-def send_video_to_telegram(text, video_url):
-
-    print("Скачиваю видео...")
-
-    video = requests.get(video_url).content
-
-
-    print("Отправляю видео...")
-
-
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendVideo"
-
-
-    files = {
-        "video": (
-            "video.mp4",
-            video,
-            "video/mp4"
-        )
-    }
-
-
-    data = {
-        "chat_id": TG_CHANNEL,
-        "caption": text
-    }
-
-
-    response = requests.post(
-        url,
-        files=files,
-        data=data
-    )
-
-
-    print(response.json())
-
-
-
 def send_photos_to_telegram(text, photos):
 
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMediaGroup"
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{TG_TOKEN}/sendMediaGroup"
+    )
 
 
     media = []
@@ -150,6 +121,7 @@ def send_photos_to_telegram(text, photos):
 
 
         if i == 0:
+
             item["caption"] = text
 
 
@@ -167,9 +139,62 @@ def send_photos_to_telegram(text, photos):
 
 
 
+def send_video_to_telegram(text, video_url):
+
+    print("Скачиваю видео...")
+
+
+    video_file = requests.get(
+        video_url
+    ).content
+
+
+    print("Отправляю видео...")
+
+
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{TG_TOKEN}/sendVideo"
+    )
+
+
+    files = {
+
+        "video": (
+            "video.mp4",
+            video_file,
+            "video/mp4"
+        )
+
+    }
+
+
+    data = {
+
+        "chat_id": TG_CHANNEL,
+
+        "caption": text
+
+    }
+
+
+    response = requests.post(
+        url,
+        files=files,
+        data=data
+    )
+
+
+    print(response.json())
+
+
+
 def send_text_to_telegram(text):
 
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{TG_TOKEN}/sendMessage"
+    )
 
 
     requests.post(
@@ -207,19 +232,23 @@ def save_last_post_id(post_id):
         "w"
     ) as f:
 
-        f.write(str(post_id))
+        f.write(
+            str(post_id)
+        )
 
 
 
 # =====================
-# ЗАПУСК
+# ОСНОВНАЯ ЛОГИКА
 # =====================
 
 
 post = get_vk_post()
 
 
-post_id = str(post["id"])
+post_id = str(
+    post["id"]
+)
 
 
 last_id = get_last_post_id()
@@ -236,7 +265,7 @@ if post_id != last_id:
 
 
     caption = (
-        ""
+        "🏀 AP Basketball\n\n"
         + text
     )
 
@@ -248,6 +277,19 @@ if post_id != last_id:
 
 
 
+    # фото отправляем отдельно
+
+    if photos:
+
+        send_photos_to_telegram(
+            caption,
+            photos
+        )
+
+
+
+    # видео отправляем отдельно
+
     if video:
 
         send_video_to_telegram(
@@ -256,15 +298,10 @@ if post_id != last_id:
         )
 
 
-    elif photos:
 
-        send_photos_to_telegram(
-            caption,
-            photos
-        )
+    # если ничего нет
 
-
-    else:
+    if not photos and not video:
 
         send_text_to_telegram(
             caption
@@ -272,7 +309,9 @@ if post_id != last_id:
 
 
 
-    save_last_post_id(post_id)
+    save_last_post_id(
+        post_id
+    )
 
 
 
