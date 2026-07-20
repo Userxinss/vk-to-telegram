@@ -191,18 +191,12 @@ def get_videos(attachments):
 # =====================
 
 def build_caption(text, post_url, limit):
-    """Собирает подпись и обрезает её под лимит Telegram, добавляя ссылку."""
-    prefix = "🏀 AP Basketball\n\n"
-    suffix = f"\n\n🔗 {post_url}"
-    max_text_len = limit - len(prefix) - len(suffix)
+    """Возвращает только текст поста без дополнительных подписей."""
 
-    if max_text_len < 0:
-        return (prefix + suffix)[:limit]
+    if len(text) > limit:
+        text = text[: limit - 1].rstrip() + "…"
 
-    if len(text) > max_text_len:
-        text = text[: max(max_text_len - 1, 0)].rstrip() + "…"
-
-    return prefix + text + suffix
+    return text
 
 
 # =====================
