@@ -7,6 +7,7 @@ TG_CHANNEL = os.getenv("TG_CHANNEL")
 
 GROUP_ID = "228742799"
 
+
 def get_vk_post():
     url = "https://api.vk.com/method/wall.get"
 
@@ -17,10 +18,7 @@ def get_vk_post():
         "v": "5.199"
     }
 
-    response = requests.get(url, params=params)
-    data = response.json()
-
-    print(data)
+    data = requests.get(url, params=params).json()
 
     return data["response"]["items"][1]
 
@@ -34,11 +32,34 @@ def send_to_telegram(text):
     })
 
 
+def get_last_post_id():
+    try:
+        with open("last_post.txt", "r") as f:
+            return f.read().strip()
+    except:
+        return ""
+
+
+def save_last_post_id(post_id):
+    with open("last_post.txt", "w") as f:
+        f.write(str(post_id))
+
+
 post = get_vk_post()
 
-text = post.get("text", "")
+post_id = str(post["id"])
 
-if text:
+last_id = get_last_post_id()
+
+
+if post_id != last_id:
+    text = post.get("text", "")
+
     send_to_telegram(
         "🏀 Новый пост из VK:\n\n" + text
     )
+
+    save_last_post_id(post_id)
+
+else:
+    print("Пост уже отправлялся")
