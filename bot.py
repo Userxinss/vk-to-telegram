@@ -23,14 +23,27 @@ def get_vk_post():
     return data["response"]["items"][1]
 
 
-def send_to_telegram(text, photo=None):
-    if photo:
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto"
+def send_to_telegram(text, photos=None):
+    if photos:
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMediaGroup"
+
+        media = []
+
+        for i, photo in enumerate(photos):
+            item = {
+                "type": "photo",
+                "media": photo
+            }
+
+            # текст добавляем только к первой фотографии
+            if i == 0:
+                item["caption"] = text
+
+            media.append(item)
 
         requests.post(url, json={
             "chat_id": TG_CHANNEL,
-            "photo": photo,
-            "caption": text
+            "media": media
         })
 
     else:
@@ -40,7 +53,6 @@ def send_to_telegram(text, photo=None):
             "chat_id": TG_CHANNEL,
             "text": text
         })
-
 
 def get_photo(post):
     if "attachments" in post:
