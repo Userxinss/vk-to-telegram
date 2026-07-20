@@ -14,7 +14,7 @@ def get_vk_post():
 
     params = {
         "owner_id": f"-{GROUP_ID}",
-        "count": 1,
+        "count": 2,
         "access_token": VK_TOKEN,
         "v": "5.199"
     }
@@ -25,7 +25,8 @@ def get_vk_post():
         print(data)
         raise Exception("Ошибка VK API")
 
-    return data["response"]["items"][0]
+    # [0] закрепленный, [1] последний обычный
+    return data["response"]["items"][1]
 
 
 def get_photos(post):
@@ -47,17 +48,51 @@ def get_video(post):
 
                 video = item["video"]
 
-                owner_id = video["owner_id"]
-                video_id = video["id"]
+                files = video.get("files", {})
 
-                return f"https://vk.com/video{owner_id}_{video_id}"
+                if "mp4_720" in files:
+                    return files["mp4_720"]
+
+                if "mp4_480" in files:
+                    return files["mp4_480"]
 
     return None
 
 
-def send_to_telegram(text, photos=None, video=None):
+def send_video_to_telegram(text, video_url):
 
-    # Если есть фотографии
+    print("Скачиваю видео...")
+
+    video_data = requests.get(video_url).content
+
+    print("Отправляю видео в Telegram...")
+
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendVideo"
+
+    files = {
+        "video": (
+            "video.mp4",
+            video_data,
+            "video/mp4"
+        )
+    }
+
+    data = {
+        "chat_id": TG_CHANNEL,
+        "caption": text
+    }
+
+    response = requests.post(
+        url,
+        files=files,
+        data=data
+    )
+
+    print(response.json())
+
+
+def send_to_telegram(text, photos=None):
+
     if photos:
 
         url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMediaGroup"
@@ -71,14 +106,8 @@ def send_to_telegram(text, photos=None, video=None):
                 "media": photo
             }
 
-            # текст только на первой фотографии
             if i == 0:
-                caption = text
-
-                if video:
-                    caption += "\n\n🎥 Видео:\n" + video
-
-                item["caption"] = caption
+                item["caption"] = text
 
             media.append(item)
 
@@ -89,18 +118,6 @@ def send_to_telegram(text, photos=None, video=None):
         })
 
 
-    # Если только видео
-    elif video:
-
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-
-        requests.post(url, json={
-            "chat_id": TG_CHANNEL,
-            "text": text + "\n\n🎥 Видео:\n" + video
-        })
-
-
-    # Только текст
     else:
 
         url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
@@ -143,16 +160,32 @@ if post_id != last_id:
 
     text = post.get("text", "")
 
+    caption = "🏀 AP Basketball\n\n" + text
+
     photos = get_photos(post)
 
     video = get_video(post)
 
 
-    send_to_telegram(
-        "🏀 AP Basketball\n\n" + text,
-        photos,
-        video
-    )
+    if video:
+
+        send_video_to_telegram(
+            caption,
+            video
+        )
+
+    elif photos:
+
+        send_to_telegram(
+            caption,
+            photos
+        )
+
+    else:
+
+        send_to_telegram(
+            caption
+        )
 
 
     save_last_post_id(post_id)
