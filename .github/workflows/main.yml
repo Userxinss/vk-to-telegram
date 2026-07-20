@@ -17,7 +17,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: last_post.txt
-          key: vk-last-post
+          key: vk-last-post-${{ github.run_id }}
 
       - name: Запускаем Python
         uses: actions/setup-python@v5
@@ -38,4 +38,4 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: last_post.txt
-          key: vk-last-post
+          key: vk-last-post-${{ github.run_id }}
