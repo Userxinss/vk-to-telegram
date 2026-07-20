@@ -1,0 +1,29 @@
+name: VK to Telegram Bot
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Получаем код
+        uses: actions/checkout@v4
+
+      - name: Запускаем Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Устанавливаем зависимости
+        run: pip install requests
+
+      - name: Запуск бота
+        env:
+          VK_TOKEN: ${{ secrets.VK_TOKEN }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
+        run: python bot.py
