@@ -90,7 +90,7 @@ if post_id != last_id:
 
     text = post.get("text", "")
     
-    photo = get_photo(post)
+    photos = get_photos(post)
 
     send_to_telegram(
         "🏀 Новый пост из VK:\n\n" + text,
