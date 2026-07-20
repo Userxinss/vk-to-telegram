@@ -1,6 +1,7 @@
 import os
 import requests
 
+
 VK_TOKEN = os.getenv("VK_TOKEN")
 TG_TOKEN = os.getenv("TG_TOKEN")
 TG_CHANNEL = os.getenv("TG_CHANNEL")
@@ -20,39 +21,12 @@ def get_vk_post():
 
     data = requests.get(url, params=params).json()
 
+    if "error" in data:
+        print(data)
+        raise Exception("Ошибка VK API")
+
     return data["response"]["items"][1]
 
-
-def send_to_telegram(text, photos=None):
-    if photos:
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMediaGroup"
-
-        media = []
-
-        for i, photo in enumerate(photos):
-            item = {
-                "type": "photo",
-                "media": photo
-            }
-
-            # текст добавляем только к первой фотографии
-            if i == 0:
-                item["caption"] = text
-
-            media.append(item)
-
-        requests.post(url, json={
-            "chat_id": TG_CHANNEL,
-            "media": media
-        })
-
-    else:
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-
-        requests.post(url, json={
-            "chat_id": TG_CHANNEL,
-            "text": text
-        })
 
 def get_photos(post):
     photos = []
@@ -66,17 +40,96 @@ def get_photos(post):
     return photos
 
 
+def get_video(post):
+    if "attachments" in post:
+        for item in post["attachments"]:
+            if item["type"] == "video":
+
+                video = item["video"]
+
+                owner_id = video["owner_id"]
+                video_id = video["id"]
+
+                return f"https://vk.com/video{owner_id}_{video_id}"
+
+    return None
+
+
+def send_to_telegram(text, photos=None, video=None):
+
+    # Если есть фотографии
+    if photos:
+
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMediaGroup"
+
+        media = []
+
+        for i, photo in enumerate(photos):
+
+            item = {
+                "type": "photo",
+                "media": photo
+            }
+
+            # текст только на первой фотографии
+            if i == 0:
+                caption = text
+
+                if video:
+                    caption += "\n\n🎥 Видео:\n" + video
+
+                item["caption"] = caption
+
+            media.append(item)
+
+
+        requests.post(url, json={
+            "chat_id": TG_CHANNEL,
+            "media": media
+        })
+
+
+    # Если только видео
+    elif video:
+
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+
+        requests.post(url, json={
+            "chat_id": TG_CHANNEL,
+            "text": text + "\n\n🎥 Видео:\n" + video
+        })
+
+
+    # Только текст
+    else:
+
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+
+        requests.post(url, json={
+            "chat_id": TG_CHANNEL,
+            "text": text
+        })
+
+
 def get_last_post_id():
+
     try:
         with open("last_post.txt", "r") as f:
             return f.read().strip()
+
     except:
         return ""
 
 
 def save_last_post_id(post_id):
+
     with open("last_post.txt", "w") as f:
         f.write(str(post_id))
+
+
+# ==========================
+# Основная логика
+# ==========================
 
 
 post = get_vk_post()
@@ -89,15 +142,22 @@ last_id = get_last_post_id()
 if post_id != last_id:
 
     text = post.get("text", "")
-    
+
     photos = get_photos(post)
 
+    video = get_video(post)
+
+
     send_to_telegram(
-        "🏀 Новый пост из VK:\n\n" + text,
-        photos
+        "🏀 AP Basketball\n\n" + text,
+        photos,
+        video
     )
+
 
     save_last_post_id(post_id)
 
+
 else:
+
     print("Пост уже отправлялся")
