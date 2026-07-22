@@ -19,6 +19,11 @@ TEXT_MESSAGE_LIMIT = 4096
 MAX_SAVED_POSTS = 100
 MAX_MEDIA_GROUP_ITEMS = 10
 
+# Подпись-приглашение на канал, добавляется в конец каждого поста
+CHANNEL_LINK = "https://t.me/ap_basketball2"
+CHANNEL_NAME = "NBA | Мир баскетбола"
+FOOTER = f'\n\n<a href="{CHANNEL_LINK}">{CHANNEL_NAME} — подписывайся</a>'
+
 
 # =====================
 # ПРОВЕРКА НАСТРОЕК
@@ -292,16 +297,35 @@ def save_memory(posts):
 # TELEGRAM
 # =====================
 
-def truncate(text, limit):
+def escape_html(text):
 
-    if len(text) > limit:
+    # экранируем спецсимволы, чтобы Telegram не сломался на разметке HTML
+    return (
+        text
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def build_message(text, limit):
+
+    text = escape_html(text)
+
+    # оставляем место под подпись-ссылку, чтобы итоговое сообщение не превысило лимит
+    max_text_len = max(
+        limit - len(FOOTER),
+        0
+    )
+
+    if len(text) > max_text_len:
 
         text = (
-            text[:limit - 1]
+            text[:max_text_len - 1]
             + "…"
         )
 
-    return text
+    return text + FOOTER
 
 
 def send_media(
@@ -310,7 +334,7 @@ def send_media(
     videos
 ):
 
-    caption = truncate(text, MEDIA_GROUP_CAPTION_LIMIT)
+    caption = build_message(text, MEDIA_GROUP_CAPTION_LIMIT)
 
     media = []
 
@@ -329,6 +353,7 @@ def send_media(
         if i == 0:
 
             item["caption"] = caption
+            item["parse_mode"] = "HTML"
 
         media.append(item)
 
@@ -369,6 +394,7 @@ def send_media(
         if not photos and i == 0:
 
             item["caption"] = caption
+            item["parse_mode"] = "HTML"
 
         media.append(item)
 
@@ -399,7 +425,7 @@ def send_media(
 
 def send_text(text):
 
-    text = truncate(text, TEXT_MESSAGE_LIMIT)
+    text = build_message(text, TEXT_MESSAGE_LIMIT)
 
     url = (
         f"https://api.telegram.org/"
@@ -411,7 +437,8 @@ def send_text(text):
         url,
         json={
             "chat_id": TG_CHANNEL,
-            "text": text
+            "text": text,
+            "parse_mode": "HTML"
         }
     )
 
