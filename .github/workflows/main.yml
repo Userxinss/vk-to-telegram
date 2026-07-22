@@ -2,34 +2,26 @@ name: VK to Telegram Bot
 
 on:
   schedule:
-    - cron: "* */5 * * *"
-  workflow_dispatch:
+    - cron: "*/5 * * * *"   # запуск каждые 5 минут
+  workflow_dispatch:         # + можно запустить вручную кнопкой на GitHub
+
+permissions:
+  contents: write            # нужно, чтобы бот мог сохранять sent_posts.json в репозиторий
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-
     steps:
       - name: Получаем код
         uses: actions/checkout@v4
 
-
-      - name: Загружаем память
-        uses: actions/cache@v4
-        with:
-          path: sent_posts.json
-          key: vk-sent-posts
-
-
-      - name: Запускаем Python
+      - name: Устанавливаем Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-
       - name: Устанавливаем зависимости
         run: pip install requests
-
 
       - name: Запуск бота
         env:
@@ -38,9 +30,10 @@ jobs:
           TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
         run: python bot.py
 
-
-      - name: Сохраняем память
-        uses: actions/cache/save@v4
-        with:
-          path: sent_posts.json
-          key: vk-sent-posts
+      - name: Сохраняем память в репозиторий
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add sent_posts.json
+          git diff --staged --quiet || git commit -m "Обновление списка отправленных постов"
+          git push
