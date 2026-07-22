@@ -21,10 +21,33 @@ MAX_MEDIA_GROUP_ITEMS = 10
 
 
 # =====================
+# ПРОВЕРКА НАСТРОЕК
+# =====================
+
+def check_env():
+    """Проверяем, что все секреты заданы, до того как начнём работу."""
+    missing = []
+
+    if not VK_TOKEN:
+        missing.append("VK_TOKEN")
+    if not TG_TOKEN:
+        missing.append("TG_TOKEN")
+    if not TG_CHANNEL:
+        missing.append("TG_CHANNEL")
+
+    if missing:
+        print("Не заданы переменные окружения:", ", ".join(missing))
+        print("Проверьте секреты репозитория (Settings -> Secrets and variables -> Actions)")
+        sys.exit(1)
+
+
+# =====================
 # HTTP
 # =====================
 
 def request_with_retry(method, url, retries=3, **kwargs):
+
+    last_error = None
 
     for attempt in range(retries):
 
@@ -40,12 +63,12 @@ def request_with_retry(method, url, retries=3, **kwargs):
         except requests.RequestException as e:
 
             print("Ошибка запроса:", e)
+            last_error = e
 
             if attempt < retries - 1:
                 time.sleep(3)
 
-    raise Exception("Не удалось выполнить запрос")
-
+    raise Exception(f"Не удалось выполнить запрос: {last_error}")
 
 
 # =====================
@@ -63,16 +86,13 @@ def vk_api(method, params):
         }
     )
 
-
     response = request_with_retry(
         "GET",
         url,
         params=params
     )
 
-
     data = response.json()
-
 
     if "error" in data:
 
@@ -82,10 +102,7 @@ def vk_api(method, params):
             data["error"]["error_msg"]
         )
 
-
     return data["response"]
-
-
 
 
 def get_vk_post():
@@ -98,18 +115,15 @@ def get_vk_post():
         }
     )
 
-
     for post in data["items"]:
 
         if not post.get("is_pinned"):
 
             return post
 
-
     raise Exception(
         "Пост не найден"
     )
-
 
 
 def get_content(post):
@@ -123,7 +137,6 @@ def get_content(post):
         "attachments",
         []
     )
-
 
     # если это репост
     if (
@@ -144,57 +157,47 @@ def get_content(post):
             []
         )
 
-
     return text, attachments
-
-
 
 
 def get_photos(attachments):
 
     photos = []
 
-
     for item in attachments:
 
         if item["type"] != "photo":
             continue
 
+        sizes = item["photo"].get("sizes")
 
-        sizes = item["photo"]["sizes"]
-
+        if not sizes:
+            continue
 
         best = max(
             sizes,
             key=lambda x:
-            x.get("width",0) *
-            x.get("height",0)
+            x.get("width", 0) *
+            x.get("height", 0)
         )
-
 
         photos.append(
             best["url"]
         )
 
-
     return photos
-
-
 
 
 def get_videos(attachments):
 
     videos = []
 
-
     for item in attachments:
 
         if item["type"] != "video":
             continue
 
-
         video = item["video"]
-
 
         owner_id = video["owner_id"]
         video_id = video["id"]
@@ -203,17 +206,14 @@ def get_videos(attachments):
             "access_key"
         )
 
-
         video_id_string = (
             f"{owner_id}_{video_id}"
         )
-
 
         if access_key:
             video_id_string += (
                 f"_{access_key}"
             )
-
 
         try:
 
@@ -224,15 +224,12 @@ def get_videos(attachments):
                 }
             )
 
-
             files = result["items"][0]["files"]
-
 
             quality = [
                 x for x in files
                 if x.startswith("mp4_")
             ]
-
 
             if quality:
 
@@ -242,11 +239,9 @@ def get_videos(attachments):
                     int(x.split("_")[1])
                 )
 
-
                 videos.append(
                     files[best]
                 )
-
 
         except Exception as e:
 
@@ -255,13 +250,11 @@ def get_videos(attachments):
                 e
             )
 
-
     return videos
 
 
-
 # =====================
-# MEMORY
+# ПАМЯТЬ (уже отправленные посты)
 # =====================
 
 def load_memory():
@@ -275,18 +268,14 @@ def load_memory():
 
             return json.load(f)
 
-
     except:
 
         return []
 
 
-
-
 def save_memory(posts):
 
     posts = posts[-MAX_SAVED_POSTS:]
-
 
     with open(
         STATE_FILE,
@@ -299,24 +288,20 @@ def save_memory(posts):
         )
 
 
-
-
 # =====================
 # TELEGRAM
 # =====================
 
-def build_caption(text):
+def truncate(text, limit):
 
-    if len(text) > MEDIA_GROUP_CAPTION_LIMIT:
+    if len(text) > limit:
 
         text = (
-            text[:MEDIA_GROUP_CAPTION_LIMIT-1]
+            text[:limit - 1]
             + "…"
         )
 
-
     return text
-
 
 
 def send_media(
@@ -325,31 +310,27 @@ def send_media(
     videos
 ):
 
+    caption = truncate(text, MEDIA_GROUP_CAPTION_LIMIT)
 
     media = []
 
     files = {}
 
-
     for i, photo in enumerate(photos):
 
         item = {
 
-            "type":"photo",
+            "type": "photo",
 
-            "media":photo
+            "media": photo
 
         }
 
-
         if i == 0:
 
-            item["caption"] = text
-
+            item["caption"] = caption
 
         media.append(item)
-
-
 
     for i, video_url in enumerate(videos):
 
@@ -357,17 +338,14 @@ def send_media(
             "Скачиваю видео..."
         )
 
-
         video = request_with_retry(
             "GET",
             video_url
         ).content
 
-
         filename = (
             f"video{i}.mp4"
         )
-
 
         files[filename] = (
 
@@ -379,93 +357,92 @@ def send_media(
 
         )
 
-
         item = {
 
-            "type":"video",
+            "type": "video",
 
             "media":
-            f"attach://{filename}"
+                f"attach://{filename}"
 
         }
 
-
         if not photos and i == 0:
 
-            item["caption"] = text
-
+            item["caption"] = caption
 
         media.append(item)
 
-
-
     media = media[:MAX_MEDIA_GROUP_ITEMS]
-
 
     url = (
         f"https://api.telegram.org/"
         f"bot{TG_TOKEN}/sendMediaGroup"
     )
 
-
     response = request_with_retry(
         "POST",
         url,
         data={
-            "chat_id":TG_CHANNEL,
-            "media":json.dumps(media)
+            "chat_id": TG_CHANNEL,
+            "media": json.dumps(media)
         },
         files=files
     )
 
+    data = response.json()
 
-    print(
-        response.json()
-    )
+    print(data)
 
+    if not data.get("ok"):
+        raise Exception(f"Telegram вернул ошибку: {data}")
 
 
 def send_text(text):
+
+    text = truncate(text, TEXT_MESSAGE_LIMIT)
 
     url = (
         f"https://api.telegram.org/"
         f"bot{TG_TOKEN}/sendMessage"
     )
 
-
-    requests.post(
+    response = request_with_retry(
+        "POST",
         url,
         json={
-            "chat_id":TG_CHANNEL,
-            "text":text
+            "chat_id": TG_CHANNEL,
+            "text": text
         }
     )
 
+    data = response.json()
+
+    print(data)
+
+    if not data.get("ok"):
+        raise Exception(f"Telegram вернул ошибку: {data}")
 
 
 # =====================
 # START
 # =====================
 
-
 def main():
 
-    post = get_vk_post()
+    check_env()
 
+    post = get_vk_post()
 
     post_id = str(
         post["id"]
     )
 
-
     memory = load_memory()
-
 
     print(
         "Проверяем пост:",
         post_id
     )
-
 
     if post_id in memory:
 
@@ -475,32 +452,20 @@ def main():
 
         return
 
-
-
     text, attachments = get_content(post)
-
 
     photos = get_photos(
         attachments
     )
 
-
     videos = get_videos(
         attachments
     )
 
-
-
-    caption = build_caption(
-        text
-    )
-
-
-
     if photos or videos:
 
         send_media(
-            caption,
+            text,
             photos,
             videos
         )
@@ -508,20 +473,16 @@ def main():
     else:
 
         send_text(
-            caption
+            text
         )
-
-
 
     memory.append(
         post_id
     )
 
-
     save_memory(
         memory
     )
-
 
     print(
         "Пост сохранен:",
@@ -529,7 +490,5 @@ def main():
     )
 
 
-
 if __name__ == "__main__":
-
     main()
